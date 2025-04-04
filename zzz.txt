@@ -1,0 +1,9 @@
+# cd into a location inside your operating system
+https://github.com/dancostinel/interview.git
+
+cd interview/
+docker compose -f docker/docker-compose.yaml up -d
+
+docker exec -it symfony1-php-container bash
+composer install
+[composer update -W]

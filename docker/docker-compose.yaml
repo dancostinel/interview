@@ -1,0 +1,25 @@
+services:
+    symfony1-nginx-service:
+        build:
+            context: .
+            dockerfile: ./nginx/Dockerfile
+        container_name: symfony1-nginx-container
+        volumes:
+            - ./../:/var/www/symfony1/
+        ports: ['8051:80']
+        networks:
+            - symfony1-network
+    symfony1-php-service:
+        build:
+            context: .
+            dockerfile: ./php/Dockerfile
+        container_name: symfony1-php-container
+        ports: ['9051:9000']
+        volumes:
+            - ./../:/var/www/symfony1/
+            - ./../vendor:/var/www/symfony1/vendor
+        networks:
+            - symfony1-network
+networks:
+    symfony1-network:
+        driver: bridge
