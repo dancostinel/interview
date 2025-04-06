@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Money Operations{% endblock %}
+
+{% block body %}
+    {% for message in app.flashes('error') %}
+        <div class="flash-notice">
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    {{ form_start(form) }}
+        {{ form_row(form.csv) }}
+        <br>
+        {{ form_row(form.submit) }}
+    {{ form_end(form) }}
+{% endblock %}

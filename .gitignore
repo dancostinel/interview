@@ -28,3 +28,4 @@ docker/mysql/
 docker/docker-conf/rabbitmq/data
 docker/docker-conf/rabbitmq/log
 .idea/
+zzz.txt

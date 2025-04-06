@@ -7,3 +7,183 @@ docker compose -f docker/docker-compose.yaml up -d
 docker exec -it symfony1-php-container bash
 composer install
 [composer update -W]
+
+browser: http://localhost:8051/
+
+navigate = ALT + WIN + LEFT/RIGHT ARROW
+save     = WIN + S
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//currency == EUR?
+//    amount <= 1000 per week?
+//        return 0
+//    amount > 1000 per week?
+//        commissionedAmount = amount - 1000
+//        return (commissionedAmount / 100) * self::WITHDRAW_PRIVATE_FEE;
+
+//currency == USD?
+//    eurAmount = amount / XRS_USD_EUR
+//    eurAmount <= 1000 per week?
+//        return 0
+//    eurAmount > 1000 per week?
+//        commissionedAmount = eurAmount - 1000
+//        return (commissionedAmount / 100) * self::WITHDRAW_PRIVATE_FEE;
+//
+//currency == JPY?:
+//    eurAmount = amount / XRS_JPY_USD
+//    eurAmount <= 1000 per week?
+//        return 0
+//    eurAmount > 1000 per week?
+//        commissionedAmount = eurAmount - 1000
+//        return (commissionedAmount / 100) * self::WITHDRAW_PRIVATE_FEE;
+
+
+
+        $redisKey = $this->dateIntervalService->compute($dto);
+        $cacheItem = $this->redisService->read($redisKey);
+//dump($redisKey.' - LineID='.$dto->getLineId().' - Date='.($dto->getOperationDate())->format('Y-m-d').' - UserType='.$dto->getUserType().' - OperationType='.$dto->getOperationType().' - Amount='.$dto->getAmount().' - Currency='.$dto->getCurrency());
+        if (null !== $cacheItem) {
+            $cachedValueAsJson = $cacheItem->get(); // {"operation-date":"2014-12-31","amount":"1200.00","currency":"EUR","line-id":1}
+dump($cachedValueAsJson);
+//            $cachedArray = json_decode($cachedValueAsJson, true);
+//            if ($dto->getLineId() !== $cachedArray['line-id']) {
+//                $merged = array_merge($cachedArray, [$dto]);
+//                $this->redisService->save($redisKey, $merged);
+//            }
+
+            return 'x.xx';
+        }
+
+        if (self::FREE_OF_CHARGE_LIMIT >= $dto->getAmount()) {
+            return '0.00-free of charge ('.$dto->getAmount().' '. $dto->getCurrency().')';
+        }
+
+        //compute fee: if withdrawn amount is > 1000,
+        //  then the fee is applicable on the value > 1000 (based on currency)
+        //  save it into redisKey
+        //return computed fee
+        $valueToBeCommissioned = $dto->getAmount() - self::FREE_OF_CHARGE_LIMIT;
+        if (self::XRS_EUR === $dto->getCurrency()) {
+            $privateCommissionFee = ($valueToBeCommissioned / 100) * self::WITHDRAW_PRIVATE_FEE;
+            $this->redisService->save($redisKey, json_encode([$dto]));
+
+            return $this->miscService->getRoundedNumberUp($privateCommissionFee);
+        }
+
+        return $dto->getCurrency();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#[Route(path: '/test')]
+    public function test(): Response
+    {
+//        $date1 = clone $dto->getOperationDate();
+//        $date2 = clone $dto->getOperationDate();
+        $date = new \DateTime('2014-12-31');
+        $startDayOfWeek = $date
+            ->modify('monday this week')
+            ->format('Y-m-d');
+
+        $endDayOfWeek = $date
+            ->modify('sunday this week')
+            ->format('Y-m-d');
+dd($startDayOfWeek, $endDayOfWeek);
+
+        #2014-12-31,4,private,withdraw,1200.00,EUR
+        #2015-01-01,4,private,withdraw,1000.00,EUR
+
+        #userId_startDayOfWeek_endDayOfWeek = [
+        #   {
+        #       "operation-date": "2014-12-31",
+        #       "user-id": 4,
+        #       "user-type": "private",
+        #       "operation-type": "withdraw",
+        #       "amount": 1200.00,
+        #       "currency": "EUR"
+        #   },
+        #   {
+        #       "operation-date": "2015-01-01",
+        #       "user-id": 4,
+        #       "user-type": "private",
+        #       "operation-type": "withdraw",
+        #       "amount": 1000.00,
+        #       "currency": "EUR"
+        #   }
+        #]
+
+
+        $operationDate1 = new \DateTime('2014-12-31');
+        $operationDate2 = new \DateTime('2014-12-31');
+        #2014-12-29
+        $startDayOfWeek = $operationDate1->modify('monday this week')->format('Y-m-d');
+        #2015-01-04
+        $endDayOfWeek = $operationDate2->modify('sunday this week')->format('Y-m-d');
+
+        #2014-12-29
+        $opDate = '2015-01-01';
+        #2015-01-04
+
+        dd($startDayOfWeek, $operationDate1, $endDayOfWeek);
+    }
+
+    #[Route(path: 'test2')]
+    public function test2(): Response
+    {
+        $dto = new OperationInfoDto(
+            '2025-01-01',
+            '4',
+            'private',
+            'deposit',
+            '112.33',
+            'JPY',
+            3
+        );
+
+        dd(json_encode($dto));
+    }
+
+    #[Route(path: '/round')]
+    public function testRound(MiscService $miscService): Response
+    {
+//        dd($miscService->getRoundedNumberUp(0.01403)); //0.02 OK
+//        dd($miscService->getRoundedNumberUp(231.60657)); //231.61 OK   30000 JPY : 129.53 JPY/EUR
+//        dd($miscService->getRoundedNumberUp(86.97921)); //86.98 OK   100 USD : 1.1497 USD/EUR
+//        dd($miscService->getRoundedNumberUp(0.69483)); //0.70 OK
+        dd($miscService->getRoundedNumberUp(23160.657)); //23,160.66
+    }

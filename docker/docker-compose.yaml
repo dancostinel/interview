@@ -20,6 +20,12 @@ services:
             - ./../vendor:/var/www/symfony1/vendor
         networks:
             - symfony1-network
+    redis-service:
+        image: library/redis:alpine
+        container_name: symfony1-redis-container
+        tty: true
+        networks:
+            - symfony1-network
 networks:
     symfony1-network:
         driver: bridge

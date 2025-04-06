@@ -1,0 +1,9 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Money Operations - List{% endblock %}
+
+{% block body %}
+    {% for fee in fees %}
+        {{ fee }} <br>
+    {% endfor %}
+{% endblock %}
