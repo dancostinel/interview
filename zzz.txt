@@ -1,13 +1,12 @@
-# cd into a location inside your operating system
-https://github.com/dancostinel/interview.git
-
+- cd into a location inside your operating system
 cd interview/
+git clone https://github.com/dancostinel/interview.git .
 docker compose -f docker/docker-compose.yaml up -d
-
 docker exec -it symfony1-php-container bash
 composer install
-[composer update -W]
+OR composer update -W
 
 browser: http://localhost:8051/
 
+Run functional tests:
 docker exec symfony1-redis-container redis-cli FLUSHALL && docker exec symfony1-php-container php bin/phpunit tests --color
