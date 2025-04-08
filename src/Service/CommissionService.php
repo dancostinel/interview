@@ -16,7 +16,6 @@ class CommissionService
     public function __construct(
         private ApiResponseInterface $apiResponse,
         private MiscService $miscService,
-        #[Autowire('%kernel.project_dir%/public/input.txt')] private string $inputJson,
         #[Autowire(env: 'json:EU_COUNTRY_CODES')] private array $euCountryCodes,
     ) {
     }
@@ -27,15 +26,17 @@ class CommissionService
     public function getCommissionValue(CommissionInfoDto $dto): float
     {
         $apiResponse = $this->apiResponse->getResponse($dto);
-        if (!$this->countryIsInEu($apiResponse->getCountryCode())) {
-            $baseCommissionValue = $this->getBaseCommissionValue($dto, $this->apiResponse->getRateValue());
+        if (self::EUR_CURRENCY === $dto->getCurrency() || $apiResponse->getRateValue() === 0.0) {
+            $baseCommissionValue = (float) $dto->getAmount();
+            $baseCommissionValue = (float) $this->miscService->getRoundedNumberUp($baseCommissionValue);
         }
 
-        if (!isset($baseCommissionValue)) {
-            return $this->countryIsInEu($dto->getCurrency()) ? 0.01 : 0.02;
+        if (self::EUR_CURRENCY !== $dto->getCurrency() || $apiResponse->getRateValue() > 0.0) {
+            $baseCommissionValue = ((float) $dto->getAmount()) / $apiResponse->getRateValue();
+            $baseCommissionValue = (float) $this->miscService->getRoundedNumberUp($baseCommissionValue);
         }
 
-        return $this->countryIsInEu($dto->getCurrency()) ? (float) $baseCommissionValue * 0.01 : $baseCommissionValue * 0.02;
+        return $this->getBaseCommissionValue($apiResponse->getCountryCode(), $baseCommissionValue);
     }
 
     private function countryIsInEu(string $countryCode): bool
@@ -43,12 +44,10 @@ class CommissionService
         return in_array($countryCode, $this->euCountryCodes, true);
     }
 
-    private function getBaseCommissionValue(CommissionInfoDto $dto, float $rate): float
+    public function getBaseCommissionValue(string $countryCode, float $baseCommissionValue): float
     {
-        if (self::EUR_CURRENCY === $dto->getCurrency() || $rate === 0.0) {
-            return (float) $this->miscService->getRoundedNumberUp((float) $dto->getAmount());
-        }
+        $amountBasedOnCountry = $this->countryIsInEu($countryCode) ? 0.01 : 0.02;
 
-        return (float) $this->miscService->getRoundedNumberUp(((float) $dto->getAmount() / $rate));
+        return $baseCommissionValue * $amountBasedOnCountry;
     }
 }

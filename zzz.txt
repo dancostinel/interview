@@ -1,12 +1,20 @@
-- cd into a location inside your operating system
-cd interview/
+UPLOAD TASK
+-----------
+cd interview/   (or a directory of your choice)
 git clone https://github.com/dancostinel/interview.git .
 docker compose -f docker/docker-compose.yaml up -d
 docker exec -it symfony1-php-container bash
-composer install
-OR composer update -W
+composer install (or composer update -W)
 
 browser: http://localhost:8051/
 
 Run functional tests:
 docker exec symfony1-redis-container redis-cli FLUSHALL && docker exec symfony1-php-container php bin/phpunit tests --color
+
+
+
+
+REFACTOR TASK
+-------------
+run unit tests
+docker exec symfony1-php-container php bin/phpunit tests/unit
