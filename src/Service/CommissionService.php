@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Contract\ApiResponseInterface;
 use App\Dto\CommissionInfoDto;
 use App\Exception\ApiException;
-use App\Exception\ReadTxtException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class CommissionService
@@ -14,28 +14,28 @@ class CommissionService
     private const EUR_CURRENCY = 'EUR';
 
     public function __construct(
-        private ApiService $apiService,
+        private ApiResponseInterface $apiResponse,
+        private MiscService $miscService,
         #[Autowire('%kernel.project_dir%/public/input.txt')] private string $inputJson,
-        #[Autowire(env: 'string:CREDIT_CARD_API_URL')] private string $creditCardApiUrl,
-        #[Autowire(env: 'string:XRS_API_URL')] private string $xrsApiUrl,
         #[Autowire(env: 'json:EU_COUNTRY_CODES')] private array $euCountryCodes,
     ) {
     }
 
     /**
-     * @throws ReadTxtException
      * @throws ApiException
      */
-    public function getCommissionValue(CommissionInfoDto $dto): string
+    public function getCommissionValue(CommissionInfoDto $dto): float
     {
-        $creditCardApiResponse = $this->apiService->getApiResponse($this->creditCardApiUrl . $dto->getBin());
-        $xrsApiResponse = $this->apiService->getApiResponse($this->xrsApiUrl);
-
-        if (!$this->countryIsInEu($creditCardApiResponse['country']['alpha2'] ?? '')) {
-            return $this->getCommissionForNonEuCountry($dto, $xrsApiResponse);
+        $apiResponse = $this->apiResponse->getResponse($dto);
+        if (!$this->countryIsInEu($apiResponse->getCountryCode())) {
+            $baseCommissionValue = $this->getBaseCommissionValue($dto, $this->apiResponse->getRateValue());
         }
 
-        return $this->countryIsInEu($dto->getCurrency()) ? "0.01\n" : "0.02\n";
+        if (!isset($baseCommissionValue)) {
+            return $this->countryIsInEu($dto->getCurrency()) ? 0.01 : 0.02;
+        }
+
+        return $this->countryIsInEu($dto->getCurrency()) ? (float) $baseCommissionValue * 0.01 : $baseCommissionValue * 0.02;
     }
 
     private function countryIsInEu(string $countryCode): bool
@@ -43,13 +43,12 @@ class CommissionService
         return in_array($countryCode, $this->euCountryCodes, true);
     }
 
-    private function getCommissionForNonEuCountry(CommissionInfoDto $dto, array $xrsApiResponse): string
+    private function getBaseCommissionValue(CommissionInfoDto $dto, float $rate): float
     {
-        $rate = (float) ($xrsApiResponse['rates'][$dto->getCurrency()] ?? 0.0);
         if (self::EUR_CURRENCY === $dto->getCurrency() || $rate === 0.0) {
-            return $dto->getAmount() . "\n";
+            return (float) $this->miscService->getRoundedNumberUp((float) $dto->getAmount());
         }
 
-        return (string) ((float) $dto->getAmount() / $rate) . "\n";
+        return (float) $this->miscService->getRoundedNumberUp(((float) $dto->getAmount() / $rate));
     }
 }

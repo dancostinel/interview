@@ -16,8 +16,7 @@ class RefactorController extends AbstractController
     public function __construct(
         #[Autowire('%kernel.project_dir%/public/input.txt')] private string $inputJson,
         #[Autowire(env: 'json:EU_COUNTRY_CODES')] private array $euCountryCodes,
-    )
-    {
+    ) {
     }
 
     #[Route(path: '/parse-txt-file')]

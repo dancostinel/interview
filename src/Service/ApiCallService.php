@@ -6,15 +6,15 @@ namespace App\Service;
 
 use App\Exception\ApiException;
 
-class ApiService
+class ApiCallService
 {
     /**
      * @throws ApiException
      */
-    public function getApiResponse(string $apiUrl): array
+    public function getResponse(string $url): array
     {
         try {
-            $apiResponse = file_get_contents($apiUrl);
+            $apiResponse = file_get_contents($url);
         } catch (\ErrorException $exception) {
             throw new ApiException('Too many requests');
         }
