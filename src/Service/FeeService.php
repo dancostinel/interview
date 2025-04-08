@@ -13,8 +13,8 @@ class FeeService
 {
     public function __construct(
         #[AutowireIterator('money_operation_strategy')] private iterable $strategies
-    )
-    {}
+    ) {
+    }
 
     /**
      * @throws ReadCsvException

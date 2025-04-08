@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Contract\AbstractFileService;
 use App\Dto\OperationInfoDto;
 use App\Exception\ReadCsvException;
+use App\Exception\ReadFileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-class CsvService
+class CsvService extends AbstractFileService
 {
     public function __construct(private FeeService $feeService)
     {
     }
 
     /**
-     * @throws ReadCsvException
+     * @throws ReadFileException
      */
     public function processRequest(UploadedFile $csvFile): array
     {
-        $csvParsedLineGenerator = $this->parseCsvFile($csvFile);
+        $csvParsedLineGenerator = $this->parseFile($csvFile);
         while ($csvParsedLineGenerator->valid()) {
             /** @var OperationInfoDto $dto */
             $dto = $csvParsedLineGenerator->current();
@@ -33,27 +35,15 @@ class CsvService
     /**
      * @throws ReadCsvException
      */
-    private function parseCsvFile(UploadedFile $csvFile): \Generator
-    {
-        $generator = $this->readCsvFile($csvFile->getPathname());
-        while ($generator->valid()) {
-            yield $this->parseCsvLine($generator->current());
-            $generator->next();
-        }
-    }
-
-    /**
-     * @throws ReadCsvException
-     */
-    private function readCsvFile(string $filename, string $delimeter = ';'): \Generator
+    public function readFile(string $filename, string $delimiter = ';'): \Generator
     {
         $handle = fopen($filename, "r");
 
         if (false === $handle) {
-            throw new ReadCsvException('Unable to open csv file to read');
+            throw new ReadCsvException('Unable to open file to read');
         }
 
-        while (($data = fgetcsv($handle, 0, $delimeter)) !== false) {
+        while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             yield $data;
         }
 
@@ -63,11 +53,11 @@ class CsvService
     /**
      * @throws ReadCsvException
      */
-    private function parseCsvLine(mixed $csvLine): OperationInfoDto
+    public function parseFileLine(mixed $csvLine): OperationInfoDto
     {
         $line = reset($csvLine);
         if (!is_array($csvLine) || empty($csvLine) || !$line) {
-            throw new ReadCsvException('Empty CSV content line');
+            throw new ReadCsvException('Missing line');
         }
 
         $parsedCsvLine = explode(',', $line);
@@ -75,11 +65,6 @@ class CsvService
             throw new ReadCsvException('Empty CSV line data');
         }
 
-        return $this->getOperationInfoDto($parsedCsvLine);
-    }
-
-    private function getOperationInfoDto(array $parsedCsvLine): OperationInfoDto
-    {
         return new OperationInfoDto(
             $parsedCsvLine[0],
             $parsedCsvLine[1],
