@@ -6,22 +6,14 @@ namespace App\Service;
 
 use App\Contract\FeeInterface;
 use App\Dto\OperationInfoDto;
-use App\Exception\ReadCsvException;
-use App\Traits\PrivateFeeTrait;
 
 class JpyFeeStrategy implements FeeInterface
 {
-    use PrivateFeeTrait;
-
     private const JPY_CURRENCY = 'JPY';
-    private const FREE_OF_CHARGE_COUNT = 3;
-    private const XRS_JPY_EUR = 129.53;  # 30000 : 129.53 = 231.61 EUR
+    private const XRS_JPY_EUR = 129.53;
 
-    public function __construct(
-        private RedisService $redisService,
-        private DateIntervalService $dateIntervalService,
-        private MiscService $miscService,
-    ) {
+    public function __construct(private CurrencyFeeBase $feeBase)
+    {
     }
 
     public function supports(string $currency): bool
@@ -29,81 +21,10 @@ class JpyFeeStrategy implements FeeInterface
         return self::JPY_CURRENCY === strtoupper($currency);
     }
 
-    /**
-     * @throws ReadCsvException
-     */
     public function getFee(OperationInfoDto $dto): string
     {
         $jpyToEur = $dto->getAmount() / self::XRS_JPY_EUR;
-        $redisKey = $this->dateIntervalService->compute($dto);
-        $cacheItem = $this->redisService->read($redisKey);
-        if (null === $cacheItem && $jpyToEur <= self::FREE_OF_CHARGE_LIMIT) {
-            $data = [
-                'total_amount' => $jpyToEur,
-                'amount' => $jpyToEur,
-                'count' => 1,
-                'has_reached_free_limit' => false,
-            ];
-            $this->redisService->save($redisKey, $data);
 
-            return '0.00';
-        }
-
-        if (null === $cacheItem && $jpyToEur > self::FREE_OF_CHARGE_LIMIT) {
-            $data = [
-                'total_amount' => $jpyToEur,
-                'amount' => $jpyToEur,
-                'count' => 1,
-                'has_reached_free_limit' => true,
-            ];
-            $this->redisService->save($redisKey, $data);
-            $fee = ($jpyToEur - self::FREE_OF_CHARGE_LIMIT) / 100 * self::WITHDRAW_PRIVATE_FEE;
-
-            return $this->miscService->getRoundedNumberUp($fee);
-        }
-
-        $cachedData = $cacheItem->get();
-        if ($cachedData['has_reached_free_limit']) {
-            $data = [
-                'total_amount' => $this->miscService->getRoundedNumberUp((float) $cachedData['total_amount'] + $dto->getAmount()),
-                'amount' => $this->miscService->getRoundedNumberUp($dto->getAmount()),
-                'count' => $cachedData['count'] + 1,
-                'has_reached_free_limit' => true,
-            ];
-            $this->redisService->save($redisKey, $data);
-            $fee = $dto->getAmount() / 100 * self::WITHDRAW_PRIVATE_FEE;
-
-            return $this->miscService->getRoundedNumberUp($fee);
-        }
-
-        $total = (float) $cachedData['total_amount'] + $dto->getAmount();
-        if ($total > 1000) {
-            $data = [
-                'total_amount' => $this->miscService->getRoundedNumberUp($total),
-                'amount' => $this->miscService->getRoundedNumberUp($dto->getAmount()),
-                'count' => $cachedData['count'] + 1,
-                'has_reached_free_limit' => true,
-            ];
-            $this->redisService->save($redisKey, $data);
-            $commissionAmount = $total - 1000;
-            $fee = $commissionAmount / 100 * self::WITHDRAW_PRIVATE_FEE;
-
-            return $this->miscService->getRoundedNumberUp($fee);
-        }
-
-        if ($cachedData['count'] >= 3) {
-            $data = [
-                'total_amount' => $this->miscService->getRoundedNumberUp((float) $cachedData['total_amount'] + $dto->getAmount()),
-                'amount' => $this->miscService->getRoundedNumberUp($dto->getAmount()),
-                'count' => $cachedData['count'] + 1,
-                'has_reached_free_limit' => true,
-            ];
-            $this->redisService->save($redisKey, $data);
-            $fee = $dto->getAmount() / 100 * self::WITHDRAW_PRIVATE_FEE;
-
-            return $this->miscService->getRoundedNumberUp($fee);
-        }
-
-        throw new ReadCsvException('This should not be reached');
+        return $this->feeBase->getFeeForExchangeRateValue($dto, $jpyToEur);
     }
 }
